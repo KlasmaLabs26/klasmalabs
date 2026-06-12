@@ -1,0 +1,120 @@
+From 4aa4548cb6bd66111cf114a81d6dc2db69cf094d Mon Sep 17 00:00:00 2001
+From: Vipul <rana.vipul08@gmail.com>
+Date: Fri, 12 Jun 2026 12:52:26 +0530
+Subject: [PATCH] Token ledger contract without Blockchain dependencies
+
+---
+ server/app.js                         |  2 +
+ server/controllers/tokenController.js | 53 +++++++++++++++++++++++++++
+ server/routes/tokenRoute.js           | 17 +++++++++
+ 3 files changed, 72 insertions(+)
+ create mode 100644 server/controllers/tokenController.js
+ create mode 100644 server/routes/tokenRoute.js
+
+diff --git a/server/app.js b/server/app.js
+index 839618d..4e44b48 100644
+--- a/server/app.js
++++ b/server/app.js
+@@ -6,6 +6,7 @@ const orderRouter = require("./routes/orderRoute");
+ const paymentRouter = require("./routes/paymentRoute");
+ const productRouter = require("./routes/productRoute");
+ const userRouter = require("./routes/userRoute");
++const tokenRouter = require("./routes/tokenRoute");
+ 
+ const app = express();
+ 
+@@ -16,6 +17,7 @@ app.use('/api/order', orderRouter);
+ app.use('/api/payment', paymentRouter);
+ app.use('/api/product', productRouter);
+ app.use('/api/user', userRouter);
++app.use('/api/token', tokenRouter);
+ 
+ // deployment
+ __dirname = path.resolve();
+diff --git a/server/controllers/tokenController.js b/server/controllers/tokenController.js
+new file mode 100644
+index 0000000..bdda651
+--- /dev/null
++++ b/server/controllers/tokenController.js
+@@ -0,0 +1,53 @@
++const balances = {};
++
++exports.mintTokens = (req, res) => {
++    console.log("Mint controller hit");
++    console.log(req.body);
++
++    const { address, amount } = req.body;
++
++    if (!address || amount <= 0) {
++        return res.status(400).json({
++            success: false,
++            message: "Invalid address or amount",
++        });
++    }
++
++    balances[address] = (balances[address] || 0) + Number(amount);
++
++    return res.status(200).json({
++        success: true,
++        message: "Tokens minted successfully",
++        balance: balances[address],
++    });
++};
++
++exports.transferTokens = (req, res) => {
++    const { from, to, amount } = req.body;
++
++    if (!balances[from] || balances[from] < amount) {
++        return res.status(400).json({
++            success: false,
++            message: "Insufficient balance",
++        });
++    }
++
++    balances[from] -= Number(amount);
++
++    balances[to] = (balances[to] || 0) + Number(amount);
++
++    res.status(200).json({
++        success: true,
++        message: "Transfer successful",
++    });
++};
++
++exports.getBalance = (req, res) => {
++    const { address } = req.params;
++
++    res.status(200).json({
++        success: true,
++        address,
++        balance: balances[address] || 0,
++    });
++};
+\ No newline at end of file
+diff --git a/server/routes/tokenRoute.js b/server/routes/tokenRoute.js
+new file mode 100644
+index 0000000..2520dcd
+--- /dev/null
++++ b/server/routes/tokenRoute.js
+@@ -0,0 +1,17 @@
++const express = require("express");
++
++const {
++    mintTokens,
++    transferTokens,
++    getBalance,
++} = require("../controllers/tokenController");
++
++const router = express.Router();
++
++router.post("/mint", mintTokens);
++
++router.post("/transfer", transferTokens);
++
++router.get("/balance/:address", getBalance);
++
++module.exports = router;
+\ No newline at end of file
+-- 
+2.53.0.windows.1
+
